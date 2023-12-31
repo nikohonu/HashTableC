@@ -46,7 +46,9 @@ static bool insert(HashTableNode **elements, size_t size, HashTableItem *item) {
     current = current->next;
   }
   if (replace) {
-    replace->item = node->item;
+    free(replace->item);
+    free(node);
+    replace->item = item;
     return false;
   }
   if (prev == NULL)
