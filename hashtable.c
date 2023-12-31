@@ -4,7 +4,7 @@ HashTable *hash_table_init() {
   HashTable *ht = (HashTable *)malloc(sizeof(HashTable));
   ht->size = INIT_SIZE;
   ht->length = 0;
-  ht->elements = (HashTableNode **)malloc(ht->size * sizeof(HashTableNode *));
+  ht->elements = (HashTableNode **)malloc(INIT_SIZE * sizeof(HashTableNode *));
   return ht;
 }
 
@@ -33,28 +33,16 @@ static HashTableNode *create_node(HashTableItem *item) {
 
 static bool insert(HashTableNode **elements, size_t size, HashTableItem *item) {
   size_t index = hash(item->key) % size;
-  HashTableNode *node = create_node(item);
-  HashTableNode *current = elements[index];
-  HashTableNode *prev = NULL;
-  HashTableNode *replace = NULL;
-  while (current != NULL) {
-    prev = current;
-    if (strcmp(prev->item->key, node->item->key) == 0) {
-      replace = prev;
-      break;
+  HashTableNode **current = &elements[index];
+  while (*current) {
+    if (strcmp((*current)->item->key, item->key) == 0) {
+      free((*current)->item);
+      (*current)->item = item;
+      return false;
     }
-    current = current->next;
+    current = &(*current)->next;
   }
-  if (replace) {
-    free(replace->item);
-    free(node);
-    replace->item = item;
-    return false;
-  }
-  if (prev == NULL)
-    elements[index] = node;
-  else
-    prev->next = node;
+  *current = create_node(item);
   return true;
 }
 
@@ -64,9 +52,9 @@ static void resize(HashTable *ht) {
       (HashTableNode **)malloc(new_size * sizeof(HashTableNode *));
   for (size_t i = 0; i < ht->size; i++) {
     HashTableNode *node = ht->elements[i];
-    while (node != NULL) {
-      insert(elements, ht->size, node->item);
+    while (node) {
       HashTableNode *prev = node;
+      insert(elements, new_size, prev->item);
       node = node->next;
       free(prev);
     }
@@ -88,7 +76,7 @@ bool hash_table_insert(HashTable *ht, char *key, void *value) {
 static HashTableNode *get_node(HashTable *ht, char *key) {
   for (size_t i = 0; i < ht->size; i++) {
     HashTableNode *node = ht->elements[i];
-    while (node != NULL) {
+    while (node) {
       if (strcmp(node->item->key, key) == 0)
         return node;
       node = node->next;
@@ -105,9 +93,7 @@ void *hash_table_get(HashTable *ht, char *key) {
   return NULL;
 }
 
-bool hash_table_has(HashTable *ht, char *key) {
-  return get_node(ht, key) != NULL;
-}
+bool hash_table_has(HashTable *ht, char *key) { return get_node(ht, key); }
 
 HashTableItem **hash_table_items(HashTable *ht) {
   size_t length = ht->length;
@@ -116,7 +102,7 @@ HashTableItem **hash_table_items(HashTable *ht) {
   size_t index = 0;
   for (size_t i = 0; i < ht->size; i++) {
     HashTableNode *node = ht->elements[i];
-    while (node != NULL) {
+    while (node) {
       items[index++] = node->item;
       node = node->next;
     }
@@ -127,7 +113,7 @@ HashTableItem **hash_table_items(HashTable *ht) {
 void hash_table_print(HashTable *ht) {
   for (size_t i = 0; i < ht->size; i++) {
     HashTableNode *node = ht->elements[i];
-    while (node != NULL) {
+    while (node) {
       printf("%zu %s %p\n", i, node->item->key, node);
       node = node->next;
     }
@@ -135,35 +121,29 @@ void hash_table_print(HashTable *ht) {
 }
 
 void hash_table_remove(HashTable *ht, char *key) {
-  HashTableNode *current = NULL;
-  HashTableNode *prev = NULL;
   for (size_t i = 0; i < ht->size; i++) {
-    current = ht->elements[i];
-    prev = NULL;
-    while (current != NULL) {
-      if (strcmp(current->item->key, key) == 0) {
-        if (prev == NULL)
-          ht->elements[i] = current->next;
-        else
-          prev->next = current->next;
-        free(current);
+    HashTableNode **current = &(ht->elements[i]);
+    while (*current) {
+      if (strcmp((*current)->item->key, key) == 0) {
+        HashTableNode *temp = *current;
+        *current = (*current)->next;
+        free(temp);
         ht->length--;
         return;
       }
-      prev = current;
-      current = current->next;
+      current = &((*current)->next);
     }
   }
 }
 
 static void clear(HashTable *ht) {
   for (size_t i = 0; i < ht->size; i++) {
-    HashTableNode *node = ht->elements[i];
-    while (node != NULL) {
-      HashTableNode *prev = node;
-      node = node->next;
-      free(prev->item);
-      free(prev);
+    HashTableNode **current = &(ht->elements[i]);
+    while (*current) {
+      HashTableNode *temp = *current;
+      *current = (*current)->next;
+      free(temp->item);
+      free(temp);
     }
   }
   free(ht->elements);
@@ -172,7 +152,7 @@ static void clear(HashTable *ht) {
 void hash_table_clear(HashTable *ht) {
   clear(ht);
   ht->size = INIT_SIZE;
-  ht->elements = (HashTableNode **)calloc(ht->size, sizeof(HashTableNode *));
+  ht->elements = (HashTableNode **)calloc(INIT_SIZE, sizeof(HashTableNode *));
   ht->length = 0;
 }
 
