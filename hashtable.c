@@ -74,13 +74,12 @@ bool hash_table_insert(HashTable *ht, char *key, void *value) {
 }
 
 static HashTableNode *get_node(HashTable *ht, char *key) {
-  for (size_t i = 0; i < ht->size; i++) {
-    HashTableNode *node = ht->elements[i];
-    while (node) {
-      if (strcmp(node->item->key, key) == 0)
-        return node;
-      node = node->next;
-    }
+  size_t index = hash(key) % ht->size;
+  HashTableNode *node = ht->elements[index];
+  while (node) {
+    if (strcmp(node->item->key, key) == 0)
+      return node;
+    node = node->next;
   }
   return NULL;
 }
@@ -121,18 +120,17 @@ void hash_table_print(HashTable *ht) {
 }
 
 void hash_table_remove(HashTable *ht, char *key) {
-  for (size_t i = 0; i < ht->size; i++) {
-    HashTableNode **current = &(ht->elements[i]);
-    while (*current) {
-      if (strcmp((*current)->item->key, key) == 0) {
-        HashTableNode *temp = *current;
-        *current = (*current)->next;
-        free(temp);
-        ht->length--;
-        return;
-      }
-      current = &((*current)->next);
+  size_t index = hash(key) % ht->size;
+  HashTableNode **current = &(ht->elements[index]);
+  while (*current) {
+    if (strcmp((*current)->item->key, key) == 0) {
+      HashTableNode *temp = *current;
+      *current = (*current)->next;
+      free(temp);
+      ht->length--;
+      return;
     }
+    current = &((*current)->next);
   }
 }
 
